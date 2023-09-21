@@ -12,6 +12,12 @@ public class DBContextHolder {
     private static final ThreadLocal<String> dbKey = new ThreadLocal<String>();
     private static final ThreadLocal<String> tbKey = new ThreadLocal<String>();
 
+    // 再添加一个 判断 是否 读写 分离的 标志
+
+    private static final ThreadLocal<Boolean> readWritre = new ThreadLocal<>();
+
+
+
     public static void setDBKey(String dbKeyIdx){
         dbKey.set(dbKeyIdx);
     }
@@ -32,8 +38,25 @@ public class DBContextHolder {
         dbKey.remove();
     }
 
+
+    //增加 可以 手动 设置 读写 分离？  感觉 没有必要 ，好像也有必要？
+
+    public static boolean getReadWrite(){
+        return readWritre.get();
+    }
+    // 不适用 读写 分离的注解 就是 走 主ku ，使用了 读写 分离的注解就是走 从库
+    public static void setReadWritre(boolean flag){
+        readWritre.set(flag);
+    }
+
+
     public static void clearTBKey(){
         tbKey.remove();
+    }
+
+    // 清楚读写 分离的标志
+    public static void clearReadWrite(){
+        readWritre.remove();
     }
 
 }

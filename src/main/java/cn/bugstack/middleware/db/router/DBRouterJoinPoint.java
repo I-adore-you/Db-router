@@ -18,10 +18,10 @@ import java.lang.reflect.Method;
 
 /**
  * @description: 数据路由切面，通过自定义注解的方式，拦截被切面的方法，进行数据库路由
- * @author: 小傅哥，微信：fustack
- * @date: 2021/9/22
- * @github: https://github.com/fuzhengwei
- * @Copyright: 公众号：bugstack虫洞栈 | 博客：https://bugstack.cn - 沉淀、分享、成长，让自己和他人都能有所收获！
+ * @author:  ego
+
+ * @github: https://github.com/I-adore-you
+
  */
 @Aspect
 public class DBRouterJoinPoint {
@@ -64,6 +64,10 @@ public class DBRouterJoinPoint {
          */
         dbKey = StringUtils.isNotBlank(dbKey) ? dbKey : dbRouterConfig.getRouterKey();
         // 路由属性
+        /*
+         假设 路由key  是 uid ， 那么 首先会从 jp 中拿到 拦截的方法的 **参数**
+         然后遍历参数， 拿到  **属性名称 ** 为 uid 的这个 这个 **属性值！**
+         */
         String dbKeyAttr = getAttrValue(dbKey, jp.getArgs());
         // 路由策略
         dbRouterStrategy.doRouter(dbKeyAttr);
@@ -71,7 +75,7 @@ public class DBRouterJoinPoint {
         try {
             return jp.proceed();
         } finally {
-           dbRouterStrategy.clear();
+            dbRouterStrategy.clear();
         }
     }
 
@@ -84,8 +88,6 @@ public class DBRouterJoinPoint {
     public String getAttrValue(String attr, Object[] args) {
         /*
          下面的逻辑 是， 如果 是 单个参数入参， 直接 作为 路由字段来用！
-
-
          */
         if (1 == args.length) {
             Object arg = args[0];
