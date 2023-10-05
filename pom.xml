@@ -56,6 +56,13 @@
             <version>8.0.22</version>
         </dependency>
 
+<!--       用下 druid 的依赖        -->
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>druid-spring-boot-starter</artifactId>
+            <version>1.2.8</version>
+        </dependency>
+
 
         <!-- https://mvnrepository.com/artifact/org.springframework.boot/spring-boot-test -->
         <dependency>

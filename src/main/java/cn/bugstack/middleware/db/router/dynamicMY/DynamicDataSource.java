@@ -1,5 +1,6 @@
 package cn.bugstack.middleware.db.router.dynamicMY;
 
+import cn.bugstack.middleware.db.router.DBContextHolder;
 import cn.bugstack.middleware.db.router.DBRouterConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 
@@ -10,6 +11,9 @@ import java.util.List;
 public class DynamicDataSource extends AbstractRoutingDataSource {
 
     private static int MOD;  // 进行 取模用的
+    /*
+        Todo ： 线程安全的原子累加器的修改,  但是这里要注意一点, 数据源的添加 或者删除, 需要 对已有的数据进行 rehash ,否则查询的时候出错, 一致性hash 可不太好实现
+     */
 
     /*
      需要 把这个 给注入进来

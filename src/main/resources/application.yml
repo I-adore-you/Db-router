@@ -1,0 +1,7 @@
+spring:
+  datasource:
+    druid:
+      driver-class-name:
+      url:
+      password:
+      username:
