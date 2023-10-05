@@ -5,6 +5,7 @@ import org.aspectj.lang.ProceedingJoinPoint;
 import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
+import org.springframework.transaction.annotation.Transactional;
 
 /**
  * @author aodre , QQ : 480029069
@@ -20,6 +21,10 @@ public class DBReadWriteAOP {
     public void aopPoint() {
     }
 
+    /*
+      这里理解一下, 这个aop 只会拦截有 DBReadWrite , 所以DBReadWrite 不用去判 null 了
+      只有用了该注解,才会走这样的逻辑
+     */
     @Around("aopPoint() && @annotation(dbReadWrite)")
     public Object doReadWrite(ProceedingJoinPoint joinPoint, DBReadWrite dbReadWrite){
 

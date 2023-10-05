@@ -41,7 +41,7 @@ public class DBContextHolder {
     public static boolean getReadWrite(){
         return readWritre.get();
     }
-    // 不适用 读写 分离的注解 就是 走 主ku ，使用了 读写 分离的注解就是走 从库
+    // 不写 读写 分离的注解 就是 走 主ku ，使用了 读写 分离的注解就是走 从库
     public static void setReadWritre(boolean flag){
         readWritre.set(flag);
     }
@@ -51,7 +51,7 @@ public class DBContextHolder {
         tbKey.remove();
     }
 
-    // 清楚读写 分离的标志
+    // 清除读写 分离的标志
     public static void clearReadWrite(){
         readWritre.remove();
     }

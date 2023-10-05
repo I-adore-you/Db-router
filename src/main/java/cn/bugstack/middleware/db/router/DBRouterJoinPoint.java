@@ -13,6 +13,7 @@ import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.annotation.Order;
 
 import java.lang.reflect.Method;
 
@@ -24,6 +25,8 @@ import java.lang.reflect.Method;
 
  */
 @Aspect
+// 存在多个切面逻辑时, 提高该切面执行的优先级
+@Order(1)
 public class DBRouterJoinPoint {
     private Logger logger = LoggerFactory.getLogger(DBRouterJoinPoint.class);
 
