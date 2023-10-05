@@ -3,7 +3,6 @@ package cn.bugstack.middleware.db.router.strategy;
 /**
  * @description: 路由策略
  * @author:  ego
- * @date: 2021/10/1
  * @github: https://github.com/I-adore-you
 
  */

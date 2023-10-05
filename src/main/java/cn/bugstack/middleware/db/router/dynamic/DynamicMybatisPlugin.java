@@ -1,5 +1,6 @@
 package cn.bugstack.middleware.db.router.dynamic;
 
+import cn.bugstack.middleware.db.router.DBContextHolder;
 import cn.bugstack.middleware.db.router.annotation.DBRouterStrategy;
 import org.apache.ibatis.executor.statement.StatementHandler;
 import org.apache.ibatis.mapping.BoundSql;

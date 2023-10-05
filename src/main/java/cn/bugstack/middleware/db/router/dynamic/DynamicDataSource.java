@@ -1,5 +1,7 @@
 package cn.bugstack.middleware.db.router.dynamic;
 
+import cn.bugstack.middleware.db.router.DBContextHolder;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.jdbc.datasource.lookup.AbstractRoutingDataSource;
 
 /**
@@ -16,9 +18,21 @@ public class DynamicDataSource extends AbstractRoutingDataSource {
      深入的理解一下 mybatis， jdbc  这个东西， 否则 你对这个理解
      只停留在 表面！
      */
+//    @Override
+//    protected Object determineCurrentLookupKey() {
+//        return "db" + DBContextHolder.getDBKey();
+//    }
+
+    @Value("${mini-db-router.jdbc.datasource.default}")
+    private String defaultDataSource;
+
     @Override
     protected Object determineCurrentLookupKey() {
-        return "db" + DBContextHolder.getDBKey();
+        if (null == DBContextHolder.getDBKey()) {
+            return defaultDataSource;
+        } else {
+            return "db" + DBContextHolder.getDBKey();
+        }
     }
 
 }

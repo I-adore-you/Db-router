@@ -7,8 +7,12 @@ import cn.bugstack.middleware.db.router.dynamic.DynamicMybatisPlugin;
 import cn.bugstack.middleware.db.router.strategy.IDBRouterStrategy;
 import cn.bugstack.middleware.db.router.strategy.impl.DBRouterStrategyHashCode;
 import cn.bugstack.middleware.db.router.util.PropertyUtil;
+import cn.bugstack.middleware.db.router.util.StringUtils;
 import org.apache.ibatis.plugin.Interceptor;
+import org.apache.ibatis.reflection.MetaObject;
+import org.apache.ibatis.reflection.SystemMetaObject;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.EnvironmentAware;
@@ -23,8 +27,10 @@ import org.springframework.transaction.support.TransactionTemplate;
 import javax.sql.DataSource;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * @description: 数据源配置解析
@@ -35,6 +41,17 @@ import java.util.Map;
  */
 @Configuration
 public class DataSourceAutoConfig implements EnvironmentAware {
+
+    /**
+     * 分库全局属性
+     */
+    private static final String TAG_GLOBAL = "global";
+
+    /**
+     * 连接池属性
+     */
+    private static final String TAG_POOL = "pool";
+
 
     /**
      * 数据源配置组
@@ -66,57 +83,72 @@ public class DataSourceAutoConfig implements EnvironmentAware {
     public DBRouterJoinPoint point(DBRouterConfig dbRouterConfig, IDBRouterStrategy dbRouterStrategy) {
         return new DBRouterJoinPoint(dbRouterConfig, dbRouterStrategy);
     }
-    /*
-     这里将 DBRouterConfig 配置成 bean
-     可以方便的注入 后面的 其他bean 的使用当中
 
-     比如 dbRouterStrategy
-     */
     @Bean
     public DBRouterConfig dbRouterConfig() {
         return new DBRouterConfig(dbCount, tbCount, routerKey);
     }
-    /*
-     mybatis 的拦截 插件
-     这个是实现 分表的一个关键！
-     */
+
     @Bean
     public Interceptor plugin() {
         return new DynamicMybatisPlugin();
     }
-    /*
-     非常核心的 数据源， 但是问题
-     理解的还是很一般！， 不是很透彻！
-     如果想要理解透彻的话， 需要看mybatis 的大致流程了！
-     */
+
+    private DataSource createDataSource(Map<String, Object> attributes) {
+        try {
+            DataSourceProperties dataSourceProperties = new DataSourceProperties();
+            dataSourceProperties.setUrl(attributes.get("url").toString());
+            dataSourceProperties.setUsername(attributes.get("username").toString());
+            dataSourceProperties.setPassword(attributes.get("password").toString());
+            dataSourceProperties.setDriverClassName(attributes.get("driver-class-name").toString());
+            // TODO 这一步是在 配置当前数据源的所使用的连接池
+
+            DataSource ds = dataSourceProperties.initializeDataSourceBuilder().
+                    type((Class<DataSource>)Class.forName((String) attributes.get("type-class-name"))).
+                    build();
+
+            // TODO   这一步在做什么
+            MetaObject dsMeta = SystemMetaObject.forObject(ds);
+            Map<String, Object> poolProps = (Map<String, Object>)(attributes.containsKey(TAG_POOL)?attributes.get(TAG_POOL): Collections.EMPTY_MAP);
+            for (Map.Entry<String, Object> entry : poolProps.entrySet()) {
+                // 中划线转驼峰
+                String key = StringUtils.middleScoreToCamelCase(entry.getKey());
+                if (dsMeta.hasSetter(key)) {
+                    dsMeta.setValue(key, entry.getValue());
+                }
+            }
+            return ds;
+        } catch (ClassNotFoundException e) {
+            throw new IllegalArgumentException("can not find datasource type class by class name", e);
+        }
+    }
+
     @Bean
-    public DataSource dataSource() {
+    public DataSource createDataSource() {
         // 创建数据源
         Map<Object, Object> targetDataSources = new HashMap<>();
         for (String dbInfo : dataSourceMap.keySet()) {
             Map<String, Object> objMap = dataSourceMap.get(dbInfo);
-            targetDataSources.put(dbInfo, new DriverManagerDataSource(objMap.get("url").toString(), objMap.get("username").toString(), objMap.get("password").toString()));
+            // 根据objMap创建DataSourceProperties,遍历objMap根据属性反射创建DataSourceProperties
+            DataSource ds = createDataSource(objMap);
+            targetDataSources.put(dbInfo, ds);
+
         }
 
         // 设置数据源
         DynamicDataSource dynamicDataSource = new DynamicDataSource();
         dynamicDataSource.setTargetDataSources(targetDataSources);
-        dynamicDataSource.setDefaultTargetDataSource(new DriverManagerDataSource(defaultDataSourceConfig.get("url").toString(), defaultDataSourceConfig.get("username").toString(), defaultDataSourceConfig.get("password").toString()));
+        // db0为默认数据源
+        dynamicDataSource.setDefaultTargetDataSource(createDataSource(defaultDataSourceConfig));
 
         return dynamicDataSource;
     }
-    /*
-     直接 将  DBRouterConfig
-     注入自己当中， 使用
-     */
+
     @Bean
     public IDBRouterStrategy dbRouterStrategy(DBRouterConfig dbRouterConfig) {
         return new DBRouterStrategyHashCode(dbRouterConfig);
     }
 
-    /*
-     做 事务 管理的
-     */
     @Bean
     public TransactionTemplate transactionTemplate(DataSource dataSource) {
         DataSourceTransactionManager dataSourceTransactionManager = new DataSourceTransactionManager();
@@ -132,22 +164,40 @@ public class DataSourceAutoConfig implements EnvironmentAware {
     public void setEnvironment(Environment environment) {
         String prefix = "mini-db-router.jdbc.datasource.";
 
-        dbCount = Integer.valueOf(environment.getProperty(prefix + "dbCount"));
-        tbCount = Integer.valueOf(environment.getProperty(prefix + "tbCount"));
+        dbCount = Integer.parseInt(Objects.requireNonNull(environment.getProperty(prefix + "dbCount")));
+        tbCount = Integer.parseInt(Objects.requireNonNull(environment.getProperty(prefix + "tbCount")));
         routerKey = environment.getProperty(prefix + "routerKey");
-
         // 分库分表数据源
         String dataSources = environment.getProperty(prefix + "list");
-        assert dataSources != null;
+        Map<String, Object> globalInfo = getGlobalProps(environment, prefix + TAG_GLOBAL);
         for (String dbInfo : dataSources.split(",")) {
-            Map<String, Object> dataSourceProps = PropertyUtil.handle(environment, prefix + dbInfo, Map.class);
+            final String dbPrefix = prefix + dbInfo;
+            Map<String, Object> dataSourceProps = PropertyUtil.handle(environment, dbPrefix, Map.class);
+            injectGlobal(dataSourceProps, globalInfo);
             dataSourceMap.put(dbInfo, dataSourceProps);
         }
 
         // 默认数据源
         String defaultData = environment.getProperty(prefix + "default");
         defaultDataSourceConfig = PropertyUtil.handle(environment, prefix + defaultData, Map.class);
-
+        injectGlobal(defaultDataSourceConfig, globalInfo);
     }
 
+    private Map<String, Object> getGlobalProps(Environment environment, String key) {
+        try {
+            return PropertyUtil.handle(environment, key, Map.class);
+        } catch (Exception e) {
+            return Collections.EMPTY_MAP;
+        }
+    }
+
+    private void injectGlobal(Map<String, Object> origin, Map<String, Object> global) {
+        for (String key : global.keySet()) {
+            if (!origin.containsKey(key)) {
+                origin.put(key, global.get(key));
+            } else if (origin.get(key) instanceof Map) {
+                injectGlobal((Map<String, Object>) origin.get(key), (Map<String, Object>) global.get(key));
+            }
+        }
+    }
 }
